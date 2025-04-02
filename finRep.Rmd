@@ -1,0 +1,242 @@
+---
+title: "finRep"
+author: "Rohan Junaid Khan_47843276"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(pROC)
+
+```
+
+```{r}
+dt <- read_csv("mort_data.csv")
+head(dt)
+```
+```{r}
+# Assuming 'df' is your dataframe
+dt <- dt %>%
+  mutate(
+    fhb = factor(fhb),
+    loan_St = factor(loan_St),
+    purpose = factor(purpose)
+  )
+
+# Optionally, check the structure to confirm changes
+str(dt)
+```
+```{r}
+summary(dt)
+```
+
+```{r}
+levels(dt$loan_St)
+```
+
+
+```{r}
+# Histograms for numeric variables like DTI and CreditScore
+ggplot(dt, aes(x = dti)) + geom_histogram(bins = 30, fill = "tomato4") +
+  labs(title = "Distribution of Debt to Income Ratio", x = "DTI", y = "Frequency")
+
+ggplot(dt, aes(x = creditScore)) + geom_histogram(bins = 30, fill = "skyblue") +
+  labs(title = "Distribution of Credit Score", x = "Credit Score", y = "Frequency")
+
+ggplot(dt, aes(x = or_amt)) + geom_histogram(bins = 30, fill = "orchid4") +
+  labs(title = "Distribution of loan amount", x = "loan amount", y = "Frequency")
+
+ggplot(dt, aes(x = or_rt)) + geom_histogram(bins = 30, fill = "seagreen3") +
+  labs(title = "Distribution", x = "Original rate", y = "Frequency")
+
+ggplot(dt, aes(x = ltv)) + geom_histogram(bins = 30, fill = "royalblue") +
+  labs(title = "Distribution", x = "loan-value", y = "Frequency")
+
+ggplot(dt, aes(x = in_rt)) + geom_histogram(bins = 30, fill = "salmon") +
+  labs(title = "Distribution", x = "interest rate", y = "Frequency")
+```
+```{r}
+# Boxplots for analyzing outliers in variables like OrigAmt
+ggplot(dt, aes(y = or_rt)) + geom_boxplot(fill = "coral") +
+  labs(title = "Boxplot", y = "original rate")
+# Boxplots for analyzing outliers in variables like OrigAmt
+ggplot(dt, aes(y = or_amt)) + geom_boxplot(fill = "maroon4") +
+  labs(title = "Boxplot", y = "loan amount")
+# Boxplots for analyzing outliers in variables like OrigAmt
+ggplot(dt, aes(y = in_rt)) + geom_boxplot(fill = "khaki3") +
+  labs(title = "Boxplot", y = "interest rate")
+# Boxplots for analyzing outliers in variables like OrigAmt
+ggplot(dt, aes(y = ltv)) + geom_boxplot(fill = "hotpink3") +
+  labs(title = "Boxplot", y = "loan-value")
+# Boxplots for analyzing outliers in variables like OrigAmt
+ggplot(dt, aes(y = dti)) + geom_boxplot(fill = "red4") +
+  labs(title = "Boxplot", y = "debt-income")
+```
+
+```{r}
+# Scatter plot between DTI and CreditScore
+ggplot(dt, aes(x = ltv, y = creditScore)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Scatter Plot: DTI vs. Credit Score", x = "loan-value", y = "Credit Score")
+```
+
+```{r}
+dt <- dt %>%
+  mutate(
+    Default_Status = case_when(
+      loan_St %in% c("Current", "Paid Off") ~ 0,  # No default
+      loan_St %in% c("Delinquent", "Foreclosure", "Modified or Sold") ~ 1,  # Default
+      TRUE ~ NA_integer_  # Handling 'Other' or undefined statuses as NA for now
+    )
+  )
+
+dt <- dt %>%
+  filter(!is.na(Default_Status))
+
+# Assuming 'df' is your dataframe
+dt <- dt %>%
+  mutate(
+    loan_stat = factor(Default_Status),
+  )
+
+dt <- dt %>%
+  select(-loan_St, -Default_Status)
+
+# Optionally, check the structure to confirm changes
+str(dt)
+```
+
+```{r}
+# Faceted scatter plot by Purpose
+ggplot(data = dt, aes(x = dti, y = creditScore)) +
+  geom_point(aes(color = loan_stat), alpha = 0.4) +
+  facet_wrap(~purpose, scales = "free") +
+  scale_color_manual(values = c("0" = "royalblue4", "1" = "orangered")) +
+  labs(title = "DTI vs. Credit Score by Purpose",
+       x = "Debt to Income Ratio",
+       y = "Credit Score",
+       color = "Loan Status") +
+  theme_minimal()
+
+```
+```{r}
+# Calculate correlations
+library(corrplot)
+
+cor_data <- dt %>%
+  select(dti, creditScore, or_amt, ltv, dti, or_rt, in_rt) %>%
+  cor(use = "complete.obs")
+
+# Plot correlation heatmap
+corrplot(cor_data, method = "color")
+
+```
+```{r}
+# Boxplot of Original Amount by Loan Status and First Home Buyer status
+ggplot(data = dt, aes(x = fhb, y = or_amt, fill = loan_stat)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("0" = "purple", "1" = "tomato")) +
+  labs(title = "Original Loan Amount by Loan Status and First-Time Home Buyer",
+       x = "First-Time Home Buyer",
+       y = "Original Loan Amount",
+       fill = "Loan Status") +
+  theme_minimal()
+
+```
+
+```{r}
+g <- ggplot(data = dt, aes(y = ltv, x = dti))
+g + geom_point(size = 3)
+g + geom_point(aes(color = purpose), size = 3)
+```
+
+
+```{r}
+# Boxplot of Original Amount by Loan Status and First Home Buyer status
+ggplot(data = dt, aes(x = purpose, y = ltv, fill = loan_stat)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("0" = "tan4", "1" = "plum2")) +
+  labs(title = "Loan to value by Loan Status and purpose",
+       x = "purpose",
+       y = "loan-value",
+       fill = "Loan Status") +
+  theme_minimal()
+
+```
+```{r}
+# 2. Box Plot of Loan-to-Value (LTV) Ratio by Loan Status
+ggplot(dt, aes(x = loan_stat, y = creditScore, fill = loan_stat)) +
+  geom_boxplot() +
+  labs(title = "Credit score by Loan Status", x = "Loan Status", y = "credit score") +
+  scale_fill_manual(values = c("lightgreen", "tomato3")) +
+  theme_minimal()
+```
+
+```{r}
+# Scatter plot comparing Current Interest Rate to Original Interest Rate
+ggplot(data = dt, aes(x = or_rt, y = in_rt)) +
+  geom_point(aes(color = loan_stat), alpha = 0.5) +  # Color code by loan status
+  scale_color_manual(values = c("0" = "slateblue", "1" = "tomato")) +  # No default vs. Default
+  labs(title = "Comparison of Original Interest Rate vs. Current Interest Rate",
+       x = "Original Interest Rate (%)",
+       y = "Current Interest Rate (%)",
+       color = "Loan Status") +
+  theme_minimal() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray")  # Add y=x line
+
+```
+
+```{r}
+# Fit Logistic Regression Model
+logistic_model <- glm(loan_stat ~ creditScore + ltv + dti + in_rt, 
+                      data = dt, 
+                      family = binomial)
+
+# Summary of the Regression Model
+summary(logistic_model)
+```
+
+```{r}
+# Interpreting Coefficients
+# Odds Ratios for Each Variable
+exp(coef(logistic_model))
+```
+
+```{r}
+# Predicting and ROC Curve Analysis
+# Predicting Probability of Default
+dt$predicted_prob <- predict(logistic_model, type = "response")
+
+# Generate ROC Curve
+roc_obj <- roc(dt$loan_stat, dt$predicted_prob)
+plot(roc_obj, main = "ROC Curve for Logistic Regression Model", col = "slateblue4")
+auc(roc_obj)
+
+# Visualizations for Regression Analysis
+# Visualize Predicted Probabilities vs. Observed Outcomes
+ggplot(dt, aes(x = predicted_prob, fill = loan_stat)) +
+  geom_histogram(binwidth = 0.05, alpha = 0.6, position = "identity") +
+  labs(title = "Predicted Probability vs. Observed Loan Status", x = "Predicted Probability of Default", y = "Count")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
